@@ -1,0 +1,521 @@
+@font-face {
+	font-family: 'open_sanslight';
+	src: url('OpenSans-Light-webfont.eot');
+	src: url('OpenSans-Light-webfont.eot?#iefix') format('embedded-opentype'),
+	url('OpenSans-Light-webfont.woff') format('woff'),
+	url('OpenSans-Light-webfont.woff2') format('woff2'),
+	url('OpenSans-Light-webfont.ttf') format('truetype'),
+	url('OpenSans-Light-webfont.svg#open_sanslight') format('svg');
+	font-weight: normal;
+	font-style: normal;
+}
+
+* {
+	padding: 0;
+	margin: 0;
+	font-size: 13px;
+	font-family: 'open_sanslight';
+}
+
+*, *::after, *::before {
+	-webkit-user-select: none;
+	-webkit-user-drag: none;
+	-webkit-app-region: no-drag;
+	cursor: default;
+}
+
+*:focus {
+	outline: none;
+}
+
+html, body {
+	width: 100%;
+	height: 100%;
+	background-color: transparent !important;
+}
+
+hr.style-one {
+	border: 0;
+	height: 1px;
+	width: 830px;
+	background: #333;
+	background-image: linear-gradient(to right, #ccc, #333, #ccc);
+}
+
+#globalConf {
+	background: #2b3c5d;
+	width: 790px;
+	padding: 15px;
+	margin-top: 5px;
+}
+
+#initMsg {
+	font-size: 200%;
+	font-family: Arial;
+	font-weight: bold;
+}
+
+.right {
+	position: fixed;
+	clear: center;
+	float: center;
+	align: left;
+	padding:10px;
+	left: 50px;
+	top: 35px;
+	background-color: #051336;
+	width:100%;
+	height:100%;
+	color: white;
+	display: none;
+	transform-origin: top left;
+	transform: scale(1.0);
+}
+
+#url,
+#gpxfile,
+#delay,
+#iot_bulb_uri
+{
+	height: 25px;
+	padding-left: 5px;
+	background: #181f2f;
+	border: #596f99 1px solid !important;
+	color: #95979c;
+}
+
+#tx_del,
+#rx_del,
+#tx_copy,
+#rx_copy,
+#ex_copy,
+#map_del,
+#lighter,
+#rasp_fire
+{
+	cursor: pointer;
+}
+
+#lighter,
+#rasp_fire {
+	top: 13px;
+}
+
+#bottom {
+	position: fixed !important;
+	bottom: 0px !important;
+	width: 100% !important;
+	height: 25px !important;
+	background: #10192c;
+}
+
+#smaller,
+#bigger
+{
+	padding: 5px;
+	float: right;
+}
+
+#warnsIco, #okIco
+{
+	padding-top: 6px;
+	padding-left: 10px;
+	padding-right: 2px;
+	float: left;
+	filter: grayscale(100%) invert(1);
+}
+
+#warnsIco2, #okIco2 {
+	padding-top: 6px;
+	float: left;
+	filter: grayscale(100%) invert(1);
+}
+
+#warnMsg, #okMsg,
+.warnsCnt, .okCnt {
+	color: white;
+	padding: 3px;
+	float: left;
+}
+
+.menus {
+	width: 50px;
+	height: 50px;
+	cursor: pointer;
+}
+
+#outTitle {
+	-webkit-app-region: no-drag;
+	position: fixed !important;
+	top: 0px !important;
+	left: 0px !important;
+	width: 100% !important;
+	height: 35px !important;
+	background: #000c18 !important;
+}
+
+#title {
+	position: fixed !important;
+	top: 6px !important;
+	left: 5px !important;
+	height: 29px;
+	background: #000c18 !important;
+	color: white;
+	-webkit-app-region: drag;
+	width: 99%;
+	padding-top: 0px;
+	padding-left: 3px;
+	font-size: 130%;
+	white-space:nowrap;
+}
+
+.content {
+	vertical-align: top;
+	overflow-x: hidden;
+	overflow-y: scroll;
+	resize: none;
+	font-family: 'Arial';
+	background: #181f2f;
+	padding-top: 2px;
+	padding-left: 2px;
+	border: #596f99 1px solid !important;
+	color: #95979c;
+}
+
+#tx_content, #rx_content, #note_content {
+	width: 820px;
+	height: 70px;
+}
+
+#note_content2 {
+	width: 820px;
+	height: 200px;
+}
+
+#note_content3 {
+	font-family: 'open_sanslight';
+	width: 790px;
+	height: 150px;
+}
+
+#limitedArea1 {
+	width: 673px;
+	height: 150px;
+	padding-top: 5px;
+	padding-left: 10px;
+	padding-bottom: 5px;
+	background-color: black;
+	white-space:nowrap;
+	border-left: #596f99 1px solid !important;
+	border-top: #596f99 1px solid !important;
+	border-bottom: #596f99 1px solid !important;
+	display:inline-block;
+}
+
+#limitedArea2 {
+	height: 150px;
+	padding-top: 5px;
+	padding-right: 10px;
+	padding-bottom: 5px;
+	white-space:nowrap;
+	display:inline-block;
+	background-color: black;
+	border-right: #596f99 1px solid !important;
+	border-top: #596f99 1px solid !important;
+	border-bottom: #596f99 1px solid !important;
+}
+
+#tb {
+	background-color: black;
+	color: white;
+	margin-top: 10px;
+	margin-left: 0px;
+	padding-left: 0px;
+	border: #596f99 1px solid !important;
+}
+
+.bulbs {
+	width: 50%;
+	cursor: pointer;
+}
+
+#left {
+	position: fixed;
+	left: 0px;
+	top: 35px;
+	width:50px;
+	height:100%;
+	color: white;
+}
+
+table {
+	color: white;
+}
+
+.button {
+	color: #42f4a4;
+	border-color: #42f4a4;
+	border-width: 2px 2px 2px 2px;
+	border-style: solid;
+	padding: 2px;
+	background: none;
+	cursor:pointer;
+}
+
+.checkbox {
+	filter: invert(100%) hue-rotate(18deg) brightness(1.7);
+	width: 15px;
+	height: 15px;
+}
+
+/* The switch - the box around the slider */
+.switch {
+	position: relative;
+	display: inline-block;
+	width: 30px;
+	height: 20px;
+}
+
+/* Hide default HTML checkbox */
+.switch input {
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+
+/* The slider */
+.slider {
+	position: absolute;
+	cursor: pointer;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	background-color: #ccc;
+	-webkit-transition: .4s;
+	transition: .4s;
+}
+
+.slider:before {
+	position: absolute;
+	content: "";
+	height: 15px;
+	width: 10px;
+	left: 3px;
+	bottom: 3px;
+	background-color: white;
+	-webkit-transition: .4s;
+	transition: .2s;
+}
+
+input:checked + .slider {
+	background-color: #42f4a4;
+}
+
+input:focus + .slider {
+	box-shadow: 0 0 1px #2196F3;
+}
+
+input:checked + .slider:before {
+	-webkit-transform: translateX(12px);
+	-ms-transform: translateX(12px);
+	transform: translateX(12px);
+}
+
+/* Customize the label (the container) */
+.container {
+	display: block;
+	position: relative;
+	padding-left: 17px;
+	margin-bottom: 6px;
+	cursor: pointer;
+	-webkit-user-select: none;
+	-moz-user-select: none;
+	-ms-user-select: none;
+	user-select: none;
+}
+
+/* Hide the browser's default radio button */
+.container input {
+	position: absolute;
+	opacity: 0;
+	cursor: pointer;
+	height: 0;
+	width: 0;
+}
+
+/* Create a custom radio button */
+.checkmark {
+	position: absolute;
+	top: 0;
+	left: 0;
+	height: 12px;
+	width: 12px;
+	background-color: #eee;
+	border-radius: 50%;
+}
+
+/* On mouse-over, add a grey background color */
+.container:hover input ~ .checkmark {
+	background-color: #ccc;
+}
+
+/* When the radio button is checked, add a blue background */
+.container input:checked ~ .checkmark {
+	background-color: #2196F3;
+}
+
+/*--------------------------------*/
+
+.dropdown {
+	display: inline-block;
+	position: relative;
+	overflow: hidden;
+	height: 28px;
+	width: 150px;
+	background: #f2f2f2;
+	border: 1px solid;
+	border-color: white #f7f7f7 whitesmoke;
+	border-radius: 0px;
+	background-image: -webkit-linear-gradient(top, transparent, rgba(0, 0, 0, 0.06));
+	background-image: -moz-linear-gradient(top, transparent, rgba(0, 0, 0, 0.06));
+	background-image: -o-linear-gradient(top, transparent, rgba(0, 0, 0, 0.06));
+	background-image: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.06));
+	-webkit-box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+	box-shadow: 0 1px 1px rgba(0, 0, 0, 0.08);
+}
+
+.dropdown:before, .dropdown:after {
+	content: '';
+	position: absolute;
+	z-index: 2;
+	top: 9px;
+	right: 10px;
+	width: 0;
+	height: 0;
+	border: 4px dashed;
+	border-color: #888888 transparent;
+	pointer-events: none;
+}
+
+.dropdown:before {
+	border-bottom-style: solid;
+	border-top: none;
+}
+
+.dropdown:after {
+	margin-top: 7px;
+	border-top-style: solid;
+	border-bottom: none;
+}
+
+.dropdown-select {
+	position: relative;
+	width: 100%;
+	margin: 0;
+	padding: 6px 8px 6px 10px;
+	height: 28px;
+	line-height: 14px;
+	font-size: 12px;
+	color: #62717a;
+	text-shadow: 0 1px white;
+	background: #f2f2f2; /* Fallback for IE 8 */
+	background: rgba(0, 0, 0, 0) !important; /* "transparent" doesn't work with Opera */
+	border: 0;
+	border-radius: 0;
+	-webkit-appearance: none;
+}
+
+.dropdown-select:focus {
+/*
+	z-index: 3;
+	width: 100%;
+	color: #394349;
+	outline: 2px solid #49aff2;
+	outline: 2px solid -webkit-focus-ring-color;
+	outline-offset: -2px;
+*/
+}
+
+.dropdown-select > option {
+	margin: 3px;
+	padding: 6px 8px;
+	text-shadow: none;
+	background: #f2f2f2;
+	border-radius: 3px;
+	cursor: pointer;
+}
+
+/* Fix for IE 8 putting the arrows behind the select element. */
+
+.lt-ie9 .dropdown {
+	z-index: 1;
+}
+
+.lt-ie9 .dropdown-select {
+	z-index: -1;
+}
+
+.lt-ie9 .dropdown-select:focus {
+	z-index: 3;
+}
+
+/* Dirty fix for Firefox adding padding where it shouldn't. */
+
+@-moz-document url-prefix() {
+	.dropdown-select {
+	padding-left: 6px;
+	}
+}
+
+.dropdown-dark {
+	background: #444;
+	border-color: #111111 #0a0a0a black;
+	background-image: -webkit-linear-gradient(top, transparent, rgba(0, 0, 0, 0.4));
+	background-image: -moz-linear-gradient(top, transparent, rgba(0, 0, 0, 0.4));
+	background-image: -o-linear-gradient(top, transparent, rgba(0, 0, 0, 0.4));
+	background-image: linear-gradient(to bottom, transparent, rgba(0, 0, 0, 0.4));
+	-webkit-box-shadow: inset 0 1px rgba(255, 255, 255, 0.1), 0 1px 1px rgba(0, 0, 0, 0.2);
+	box-shadow: inset 0 1px rgba(255, 255, 255, 0.1), 0 1px 1px rgba(0, 0, 0, 0.2);
+}
+
+.dropdown-dark:before {
+	border-bottom-color: #aaa;
+}
+
+.dropdown-dark:after {
+	border-top-color: #aaa;
+}
+
+.dropdown-dark .dropdown-select {
+	color: #aaa;
+	text-shadow: 0 1px black;
+	background: #444;  /* Fallback for IE 8 */
+}
+
+.dropdown-dark .dropdown-select:focus {
+	color: #ccc;
+}
+
+.dropdown-dark .dropdown-select > option {
+	background: #444;
+	text-shadow: 0 1px rgba(0, 0, 0, 0.4);
+}
+
+/*-----------------------------------*/
+
+::-webkit-scrollbar {
+	width: 10px;
+}
+
+::-webkit-scrollbar-track {
+	background: #f1f1f1; 
+}
+
+::-webkit-scrollbar-thumb {
+	background: #888; 
+}
+
+::-webkit-scrollbar-thumb:hover {
+	background: #555; 
+}

@@ -1,0 +1,15 @@
+{
+	"name": "ted_device_simulator",
+	"version": "1.0.0",
+	"main": "backend.js",
+	"dependencies": {
+		"body-parser": "^1.18.3",
+		"express": "^4.16.4",
+		"fs-extra": "^7.0.1",
+		"request": "^2.88.0",
+		"windows-blurbehind": "file:windows-blurbehind",
+		"windows-swca": "file:windows-swca"
+	},
+	"devDependencies": {},
+	"scripts": {}
+}
