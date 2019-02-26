@@ -12,7 +12,7 @@ Ted IoT Device Simulator is a simple application that enables to simulate common
 
 ## HOW TO USE
 * Download from https://github.com/ykhwong/ted_iot_dev/releases and extract the archive.
-* Run the exeutbale.
+* Run the executbale.
 
 ## FEATURES
 * Self-Driving Car
