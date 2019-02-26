@@ -11,7 +11,7 @@ Ted IoT Device Simulator is a simple application that enables to simulate common
 * Any solution that receives the HTTP POST method from the simulator
 
 ## HOW TO USE
-* Download and extract the archive.
+* Download from https://github.com/ykhwong/ted_iot_dev/releases and extract the archive.
 * Run the exeutbale.
 
 ## FEATURES
