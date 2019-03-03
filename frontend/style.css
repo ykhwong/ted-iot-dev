@@ -42,6 +42,17 @@ hr.style-one {
 	background-image: linear-gradient(to right, #ccc, #333, #ccc);
 }
 
+#exit {
+	position: absolute;
+	top: 0px;
+	right: 5px;
+	filter: brightness(0.8);
+}
+
+#exit:hover {
+	filter: brightness(1);
+}
+
 #globalConf {
 	background: #2b3c5d;
 	width: 790px;

@@ -26,9 +26,6 @@ $(document).ready(function() {
 		{
 			name: "demoAutoRunner",
 			title: "Demo Auto Runner"
-		},
-		{
-			name: "exit"
 		}
 	];
 	var carThreads=[];
@@ -348,6 +345,11 @@ $(document).ready(function() {
 					return console.log(err);
 				}
 			}); 
+		});
+		
+		$("#exit").click(function() {
+			const { remote } = require('electron');
+			remote.getCurrentWindow().close();
 		});
 
 		$("#menu_home").trigger( "click" );
