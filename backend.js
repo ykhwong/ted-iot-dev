@@ -1,5 +1,5 @@
 const app = require('electron').app;
-const frontend_dir = 'file://' + __dirname + '/frontend/';
+const frontendDir = 'file://' + __dirname + '/frontend/';
 
 function setTrans(enabled, mainWindow, type) {
 	if (process.platform === 'win32') {
@@ -51,7 +51,7 @@ app.on('ready', function() {
 		transparent: true
 	});
 
-	mainWindow.loadURL(frontend_dir + 'main.html');
+	mainWindow.loadURL(frontendDir + 'main.html');
 	setTrans(true, mainWindow, 'fluent');
 
 	if (process.versions.electron.split('.')[0] < 6) {
