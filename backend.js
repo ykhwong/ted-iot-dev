@@ -1,99 +1,69 @@
-const { app } = require('electron');
+const app = require('electron').app;
+const frontend_dir = 'file://' + __dirname + '/frontend/';
 
-app.on('ready', function() {
-	let mainWindow = null;
-	let mainWindow2 = null;
-	const { BrowserWindow } = require('electron');
-	mainWindow = new BrowserWindow({
-		width: 700,
-		height: 360,
-		title: "",
-		icon: __dirname + '/icon.png',
-		resize: false,
-		frame: false,
-		maximizable: false,
-		backgroundColor: '#060621',
-		webPreferences: { webSecurity: false, nodeIntegration: true }
-	});
-
-	mainWindow.loadURL('file://' + __dirname + '/frontend/main.html');
-	mainWindow.focus();
-
-	mainWindow.on('closed', function(e) {
-		if (mainWindow2 === null) {
-			mainWindow = null;
-			if (process.platform != 'darwin') {
-				app.quit();
+function setTrans(enabled, mainWindow, type) {
+	if (process.platform === 'win32') {
+		const os = require('os');
+		if (parseFloat(os.release()) >= 10) {
+			const SWCA = require('windows-swca').SetWindowCompositionAttribute;
+			let attribValue = 0; /*AccentState.ACCENT_DISABLED;*/
+			let color = 0x00000000;
+			if (enabled) {
+				if (parseInt(os.release().split('.')[2]) >= 17063 && type === 'fluent') {
+					attribValue = 4; /*AccentState.ACCENT_ENABLE_FLUENT;*/
+					color = 0x01000000;
+				} else {
+					attribValue = 3; /*AccentState.ACCENT_ENABLE_BLURBEHIND;*/
+				}
 			}
+			SWCA(mainWindow, attribValue, color);
 		} else {
-			e.preventDefault();
+			const DEBEW = require('windows-blurbehind').DwmEnableBlurBehindWindow;
+			DEBEW(mainWindow, enabled);
 		}
-	});
-
-	loadIpc();
-
-	function loadEvent() {
-		mainWindow2.on('close', function(e) {
-			e.preventDefault();
-			mainWindow2.webContents.send('remote', {
-				msg: 'exit'
-			});
-		});
+	} else if (process.platform === 'darwin') {
+		mainWindow.setVibrancy('dark');
 	}
+}
 
-	function loadIpc() {
-		const ipc = require('electron').ipcMain;
-		ipc.on('remote', (event, data) => {
-			if (data == "exit") {
-				if (mainWindow2 != null) {
-					mainWindow2.destroy();
-				}
-				if (process.platform != 'darwin') {
-					app.quit();
-				}
-				return;
-			}
-			if (data == "select1") {
-				mainWindow2 = new BrowserWindow({
-					width: 300,
-					height: 150,
-					minWidth: 300,
-					minHeight: 150,
-					title: "",
-					icon: __dirname + '/icon.png',
-					resize: false,
-					frame: false,
-					maximizable: false,
-					backgroundColor: '#060621'
-				});
-				mainWindow2.loadURL('file://' + __dirname + '/frontend/control.html');
-				loadEvent();
-				mainWindow.destroy();
-
-				//For debugging:
-				//mainWindow2.webContents.openDevTools();
-			}
-			if (data == "select2") {
-				mainWindow2 = new BrowserWindow({
-					width: 1200,
-					height: 680,
-					minWidth: 1200,
-					minHeight: 680,
-					title: "",
-					icon: __dirname + '/icon.png',
-					resize: true,
-					frame: false,
-					backgroundColor: '#060621'
-				});
-				mainWindow2.loadURL('file://' + __dirname + '/frontend/index.html');
-				loadEvent();
-				mainWindow.destroy();
-			}
-		});
-	}
-});
+app.disableHardwareAcceleration();
 
 app.on('window-all-closed', (e) => {
 	if (process.platform != 'darwin')
 		app.quit();
+});
+
+app.on('ready', function() {
+	const BrowserWindow = require('electron').BrowserWindow;
+	mainWindow = new BrowserWindow({
+		width: 910,
+		height: 790,
+		minWidth: 910,
+		minHeight: 790,
+		title: "",
+		icon: __dirname + '/icon.png',
+		resize: true,
+		fullscreen: false,
+		frame: false,
+		backgroundColor: '#80051336',
+		webPreferences: { webSecurity: false, nodeIntegration: true },
+		show: false,
+		transparent: true
+	});
+
+	mainWindow.loadURL(frontend_dir + 'main.html');
+	setTrans(true, mainWindow, 'fluent');
+
+	if (process.versions.electron.split('.')[0] < 6) {
+		mainWindow.setMaximizable(false);
+	}
+	mainWindow.show();
+	mainWindow.focus();
+
+	mainWindow.webContents.on('did-finish-load', function() {
+		mainWindow.webContents.send( 'cmd', { msg: 'loaded' } );
+	});
+
+	//For debugging:
+	//mainWindow.webContents.openDevTools();
 });
