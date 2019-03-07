@@ -1,8 +1,8 @@
 const request = require('request');
+const appPort = 3000;
+const configFile = "data.config";
 let gpxOrigFilePath = "trace.gpx";
-let gpxFilePath = "trace.gpx";
-let configFile = "data.config";
-let appPort = 3000;
+let gpxFilePath = gpxOrigFilePath;
 let zoomLvl=1.0;
 
 $(document).ready(function() {

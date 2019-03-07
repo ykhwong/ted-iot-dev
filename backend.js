@@ -1,5 +1,6 @@
 const app = require('electron').app;
 const frontendDir = 'file://' + __dirname + '/frontend/';
+const debugMode = false;
 
 function setTrans(enabled, mainWindow, type) {
 	if (process.platform === 'win32') {
@@ -64,6 +65,7 @@ app.on('ready', function() {
 		mainWindow.webContents.send( 'cmd', { msg: 'loaded' } );
 	});
 
-	//For debugging:
-	//mainWindow.webContents.openDevTools();
+	if (debugMode) {
+		mainWindow.webContents.openDevTools();
+	}
 });
