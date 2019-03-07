@@ -1,796 +1,439 @@
-const request = require('request');
-let gpxOrigFilePath = "trace.gpx";
-let gpxFilePath = "trace.gpx";
-let configFile = "data.config";
-let appPort = 3000;
-let zoomLvl=1.0;
+var tmpDir = "";
+const vbsBg = `
+Dim objPPT
+Dim TestFile
+Dim opres
+Set objPPT = CreateObject("PowerPoint.Application")
+
+Sub Proc(ap)
+	Dim sl
+	Dim shGroup
+	Dim sngWidth
+	Dim sngHeight
+
+	For Each sl In ap.Slides
+		sl.Export Wscript.Arguments.Item(1) & "/Slide" & sl.SlideIndex & ".png", "PNG"
+	Next
+End Sub
+
+sub Main()
+	objPPT.DisplayAlerts = False
+	Set ap = objPPT.Presentations.Open(Wscript.Arguments.Item(0), , , msoFalse)
+	Proc(ap)
+
+	For each opres In objPPT.Presentations
+		TestFile = opres.FullName
+		Exit For
+	Next
+
+	If TestFile = "" Then objPPT.Quit
+	Set objPPT = Nothing
+End Sub
+Main
+`
+
+const vbsNoBg = `
+Dim objPPT
+Dim TestFile
+Dim opres
+Set objPPT = CreateObject("PowerPoint.Application")
+
+Sub Proc(ap)
+	On Error Resume Next
+	Dim sl
+	Dim shGroup
+	Dim sngWidth
+	Dim sngHeight
+
+	With ap.PageSetup
+		sngWidth = .SlideWidth
+		sngHeight = .SlideHeight
+	End With
+
+	For Each sl In ap.Slides
+		With sl.Shapes.AddShape( 1, 0, 0, sngWidth, sngHeight)
+			.Fill.Visible = msoFalse
+			.Line.Visible = msoFalse
+			.SetShapesDefaultProperties
+		End With
+
+		For intShape = 1 To sl.Shapes.Count
+			If sl.Shapes(intShape).Type = 7 Then
+				sl.Shapes(intShape).Delete
+			End If
+		Next
+
+		Set shpGroup = sl.Shapes.Range()
+		Dim fn
+		fn = Wscript.Arguments.Item(1) & "/Slide" & sl.SlideIndex & ".png"
+		shpGroup.Export fn, 2, , , 1
+
+	Next
+End Sub
+
+sub Main()
+	objPPT.DisplayAlerts = False
+	Set ap = objPPT.Presentations.Open(Wscript.Arguments.Item(0), , , msoFalse)
+	Proc(ap)
+
+	For each opres In objPPT.Presentations
+		TestFile = opres.FullName
+		Exit For
+	Next
+
+	If TestFile = "" Then objPPT.Quit
+	Set objPPT = Nothing
+End Sub
+Main
+`;
 
 $(document).ready(function() {
-	var MENU = [
-		{
-			name: "home",
-			title: "Welcome"
-		},
-		{
-			name: "car",
-			title: "Self-driving Car"
-		},
-		{
-			name: "iotBulb",
-			title: "IoT Bulb"
-		},
-		{
-			name: "iotFlame",
-			title: "IoT Flame Sensor"
-		},
-		{
-			name: "demoAutoRunner",
-			title: "Demo Auto Runner"
-		}
-	];
-	var carThreads=[];
-	var urlTypingTimer=[];
-	var doneTypingInterval = 1000;
-	var mapUpdateStartTime = 0;
-	var mapDeleted = false;
-	var lastLon = 0;
-	var lastLat = 0;
+	const spawn = require( 'child_process' ).spawn;
+	const { remote } = require('electron');
+	const ipc = require('electron').ipcRenderer;
+	const fs = require("fs-extra");
+	const binPath = './bin/PPTNDI.EXE';
+	var child;
+	var maxSlideNum = 0;
+	var currentSlide = 1;
+	var currentWindow = remote.getCurrentWindow();
+	var repo;
 
-	function refreshWarn() {
-		var warnCnt=0;
-		var okCnt=0;
-		var src;
-		var warnDetails = "";
-		var okDetails = "";
-		var attr;
-
-		MENU.forEach(function(rawMenuName, k) {
-			var menuName = rawMenuName.name;
-			var rightName = '#right_' + menuName;
-			menuName = getInfo(menuName, "title");
-			src = $(rightName + " #filestat").attr("src");
-			if (src == "warn.png") {
-				warnDetails += menuName + ": Invalid file\n";
-				warnCnt++;
-			} else if (src == "ok.png") {
-				okDetails += menuName + ": File OK\n";
-				okCnt++;
-			}
-			src = $(rightName + " #uristat").attr("src");
-			if (src == "warn.png") {
-				warnDetails += menuName + ": Invalid URI\n";
-				warnCnt++;
-			} else if (src == "ok.png") {
-				okDetails += menuName + ": URI OK\n";
-				okCnt++;
-			}
-			src = $(rightName + " #svrstat").attr("src");
-			if (src == "warn.png") {
-				warnDetails += menuName + ": Listening server error\n";
-				warnCnt++;
-			} else if (src == "ok.png") {
-				okDetails += menuName + ": Listening server OK\n";
-				okCnt++;
-			}
-		});
-		$("#statusMsg").html('<br /><img src="" id="okIco2" width="15px">' + '<div class="okCnt"></div>&nbsp;<div id="okMsg">OK</div>');
-		$("#statusMsg").append('<br /><textarea name="note_content3" id="note_content3" class="content" readonly>' + okDetails + '</textarea>');
-		$("#statusMsg").append('<br /><br /><img src="" id="warnsIco2" width="15px">' + '<div class="warnsCnt"></div>&nbsp;<div id="warnMsg">Warnings</div>');
-		$("#statusMsg").append('<br /><textarea name="note_content3" id="note_content3" class="content" readonly>' + warnDetails + '</textarea>');
-		$("#okIco2").attr("src","ok.png");
-		$("#warnsIco2").attr("src","warn.png");
-		$(".warnsCnt").html(warnCnt);
-		$(".okCnt").html(okCnt);
-
-		setTimeout(refreshWarn, 2000);
-	}
-
-	function getInfo(name, target) {
-		var rawMenuName;
-		var ret;
-		if (name == "exit") {
-			return "";
-		}
-		MENU.forEach(function(rawMenuName, k) {
-			if (name === rawMenuName.name) {
-				switch (target) {
-					case "title":
-						ret = rawMenuName.title;
-						//console.log("Found(getInfo-target): " + ret);
-						break;
-					default:
-						//console.log("Not found(getInfo-target): " + target);
-						break;
-				}
-			}
-		});
-		if (typeof ret == 'undefined') {
-			//console.log("Not found(getInfo-name): " + name);
-		}
-		return ret;
-	}
-
-	function setInfo(name, target, val) {
-		var rawMenuName;
-		var ret=false;
-		MENU.forEach(function(rawMenuName, k) {
-			if (name === rawMenuName.name) {
-				switch (target) {
-					case "title":
-						rawMenuName.title = val;
-						console.log("Set(setInfo-target " + target + "): " + val);
-						ret = true;
-						break;
-					default:
-						console.log("Not found(setInfo-target): " + target);
-						ret = true;
-						break;
-				}
-			}
-		});
-		if (ret == false) {
-			console.log("Not found(setInfo-name): " + name);
-		}
+	if (fs.existsSync(binPath)) {
+		child = spawn(binPath);
+		child.stdin.setEncoding('utf-8');
+		child.stdout.pipe(process.stdout);
+		//child.on('exit', function (code) {
+		//	alert("EXITED " + code);
+		//});
+	} else {
+		alert('Failed to create a listening server!');
+		ipc.send('remote', "exit");
 		return;
 	}
 
-	function clearAllThreads() {
-		for (i = 0; i < carThreads.length; i++) {
-			clearTimeout(carThreads[i]);
+	function updateScreen() {
+		var curSli, nextSli;
+		var nextNum;
+		var re, rpc;
+		if(!repo) {
+			return;
 		}
+		rpc = tmpDir + "/Slide";
+		curSli = rpc + currentSlide.toString() + '.png';
+		nextNum = currentSlide;
+		nextNum++;
+		nextSli = rpc + nextNum.toString() + '.png';
+		$("select").find('option[value="Current"]').data('img-src', curSli);
+		if (!fs.existsSync(nextSli)) {
+			nextSli = rpc + '1.png';
+		}
+		$("select").find('option[value="Next"]').data('img-src', nextSli);
+		initImgPicker();
+		try {
+			child.stdin.write(curSli + "\n");
+		} catch(e) {
+		}
+		$("#slide_cnt").html("SLIDE " + currentSlide + " / " + maxSlideNum);
 	}
 
-	function change_url_color(rightName) {
-		if (!/^(f|ht)tps?:\/\//i.test($('#url').val().trim())) {
-			$(rightName + " #url").css("color", "yellow");
-			$(rightName + " #uristat").attr('src',"warn.png");
-			return;
+	$("select").change(function() {
+		if (repo == null) {
+			repo = $(this);
 		}
-		request.post({
-			  headers: {'content-type' : 'application/json'},
-			  timeout: 2000,
-			  url:     $(rightName + " #url").val(),
-			  body:    `{}`
-			}, function(err, res, body){
-				if (err) {
-					$(rightName + " #url").css("color", "yellow");
-					$(rightName + " #uristat").attr('src',"warn.png");
-					return console.log(err);
-				}
-				$(rightName + " #url").css("color", "#E0FFFF");
-				$(rightName + " #uristat").attr('src',"ok.png");
-			});
-	}
-	
-	function loadConf() {
-		const fs = require("fs-extra");
-		var content;
-		var res;
-		if (!fs.existsSync(configFile)) {
-			return;
-		}
-		content = fs.readFileSync(configFile, 'utf-8');
-		res = content.replace(/\r\n/g, "\n").split("\n");
-		for (i = 0; i < res.length; i++) {
-			let entry = res[i];
-			if (entry != "") {
-				entry = entry.trim();
-				var keyval = entry.split("=");
-				var key = keyval[0];
-				var val = keyval[1];
-				var keyval2 = keyval[0].split(".");
-				var key2 = keyval2[0];
-				var val2 = keyval2[1];
-				$("#right_" + key2 + " #" + val2).val(val);
-				change_url_color("#right_" + key2);
+	});
+
+	$("#with_background").click(function() {
+		$("#reloadReq").toggle();
+	});
+
+	function initImgPicker() {
+		$("select").imagepicker({
+			hide_select: true,
+			show_label: true,
+			selected:function(select, picker_option, event) {
+				currentSlide=$('.selected').text();
+				updateScreen();
 			}
+		});
+		if ($("#trans_checker").is(":checked")) {
+			$("#right img").css('background-image', "url('trans_slide.png')");
+		} else {
+			$("#right img").css('background-image', "url('null_slide.png')");
 		}
 	}
 
-	function lazyLoad() {
-		$("#warnsIco").attr("src","warn.png");
-		$("#smaller").attr("src","smaller.png");
-		$("#bigger").attr("src","bigger.png");
+	$("#load_pptx").click(function() {
+		const {dialog} = require('electron').remote;
+		$("#fullblack").show();
+		dialog.showOpenDialog(currentWindow,{
+			properties: ['openFile'],
+			filters: [
+				{name: 'PowerPoint Presentations', extensions: ['pptx', 'ppt']},
+				{name: 'All Files', extensions: ['*']}
+			]
+		}, function (file) {
+			if (file !== undefined) {
+				var re = new RegExp("\\.pptx*\$", "i");
+				var vbsDir, res;
+				var fileArr = [];
+				var options = "";
+				if (re.exec(file)) {
+					var now = new Date().getTime();
+					var newVbsContent;
+					var preTmpDir;
+					const spawnSync = require( 'child_process' ).spawnSync;
+					preTmpDir = tmpDir;
+					tmpDir = process.env.TEMP + '/ppt_ndi';
+					if (!fs.existsSync(tmpDir)) {
+						fs.mkdirSync(tmpDir);
+					}
+					tmpDir += '/' + now;
+					fs.mkdirSync(tmpDir);
+					vbsDir = tmpDir + '/wb.vbs';
 
-		setTimeout(function() {
-			$("#right_iotBulb #room1").attr("src","bulb_off.png");
-			$("#right_iotBulb #room2").attr("src","bulb_off.png");
-			$("#right_iotBulb #room3").attr("src","bulb_off.png");
-			$("#right_iotBulb #room4").attr("src","bulb_off.png");
-			$("#right_iotBulb #uristat").attr("src","warn.png");
-			//$("#right_iotBulb #svrstat").attr("src","warn.png");
-			$("#right_iotBulb #tx_del").attr("src","erase.png");
-			$("#right_iotBulb #tx_copy").attr("src","copy.png");
-			$("#right_iotBulb #rx_del").attr("src","erase.png");
-			$("#right_iotBulb #rx_copy").attr("src","copy.png");
-			$("#right_iotBulb #ex_copy").attr("src","copy.png");
-
-			$("#right_iotFlame #lighter").attr("src","flame_ani.gif");
-			$("#right_iotFlame #rasp_fire").attr("src","rasp_fire_off.png");
-			$("#right_iotFlame #uristat").attr("src","warn.png");
-			$("#right_iotFlame #tx_del").attr("src","erase.png");
-			$("#right_iotFlame #tx_copy").attr("src","copy.png");
-			$("#right_iotFlame #ex_copy").attr("src","copy.png");
-
-			$("#right_car #uristat").attr("src","warn.png");
-			$("#right_car #filestat").attr("src","warn.png");
-			$("#right_car #map_del").attr("src","collapse_icon.png");
-			$("#right_car #tx_del").attr("src","erase.png");
-			$("#right_car #tx_copy").attr("src","copy.png");
-			$("#right_car #ex_copy").attr("src","copy.png");
-			
-			$("#right_demoAutoRunner #uristat").attr("src","warn.png");
-			$("#right_demoAutoRunner #tx_del").attr("src","erase.png");
-			$("#right_demoAutoRunner #tx_copy").attr("src","copy.png");
-			$("#right_demoAutoRunner #ex_copy").attr("src","copy.png");
-			mapUpdate(0, 0);
-		}, 250);
-
-		refreshWarn();
-	}
-
-	function init() {
-		const ipc = require('electron').ipcRenderer;
-		var rawMenuName, menuName, rightName;
-		MENU.forEach(function(rawMenuName, k) {
-			menuName = '#menu_' + rawMenuName.name;
-			rightName = '#right_' + rawMenuName.name;
-			$('#left').append('<div class="menus" id="' + menuName.replace(/#/g, "") + '"></div>');
-			$(menuName).css("background-image", 'url("' + menuName.replace(/#/g, "") + '.png")');
-			if (rawMenuName.name !== "exit") {
-				implFunc(rawMenuName.name);
-				$(menuName).click(function() {
-					rightName = '#right_' + rawMenuName.name;
-					$(".menus").css("background-color", "rgba(0,0,0,0)");
-					$(this).css("background-color", "rgba(66,241,244,0.5)");
-					$(".right").hide();
-					$("#title").html(" Device Simulator - " + getInfo(rawMenuName.name, "title"));
-					$(rightName).show();
-				});
-				$(rightName + " #tx_del").click(function() {
-					$(rightName + " #tx_content").val("");
-				});
-				$(rightName + " #rx_del").click(function() {
-					$(rightName + " #rx_content").val("");
-				});
-				$(rightName + " #tx_copy").click(function() {
-					var ms = rightName + " #tx_content";
-					$(ms).focus();
-					$(ms).select();
-					document.execCommand('copy');
-				});
-				$(rightName + " #rx_copy").click(function() {
-					var ms = rightName + " #rx_content";
-					$(ms).focus();
-					$(ms).select();
-					document.execCommand('copy');
-				});
-				$(rightName + " #ex_copy").click(function() {
-					var ms = rightName + " #note_content";
-					if ($(ms).length){
-						$(ms).focus();
-						$(ms).select();
+					if ($("#with_background").is(":checked")) {
+						newVbsContent = vbsBg;
 					} else {
-						ms += "2";
-						$(ms).focus();
-						$(ms).select();
+						newVbsContent = vbsNoBg;
 					}
-					document.execCommand('copy');
-				});
-				$(rightName + ' #url').on('keyup', function() {
-					clearTimeout(urlTypingTimer[k]);
-					urlTypingTimer[k] = setTimeout(function() { change_url_color(rightName); }, doneTypingInterval);
-				});
+					
+					try {
+						fs.writeFileSync(vbsDir, newVbsContent, 'utf-8');
+					} catch(e) {
+						cleanupForTemp();
+						tmpDir = preTmpDir;
+						alert('Failed to access the temporary directory!');
+						$("#fullblack").hide();
+						return;
+					}
+					res = spawnSync( 'cscript.exe', [ vbsDir, file, tmpDir, '' ] );
+					$("#fullblack").hide();
+					if ( res.status !== 0 ) {
+						maxSlideNum = 0;
+						cleanupForTemp();
+						tmpDir = preTmpDir;
+						alert('Failed to parse the presentation!');
+						$("#fullblack").hide();
+						return;
+					}
+					maxSlideNum = 0;
+					fs.readdirSync(tmpDir).forEach(file2 => {
+						re = new RegExp("^Slide(\\d+)\\.png\$", "i");
+						if (re.exec(file2)) {
+							var rpc = file2.replace(re, "\$1");
+							fileArr.push(rpc);
+							maxSlideNum++;
+						}
+					})
+					if (fileArr === undefined || fileArr.length == 0) {
+						maxSlideNum = 0;
+						cleanupForTemp();
+						tmpDir = preTmpDir;
+						alert("Presentation file could not be loaded.\nPlease remove missing fonts if applicable.");
+						$("#fullblack").hide();
+						return;
+					}
 
-				$(rightName + ' #url').on('keydown', function () {
-					clearTimeout(urlTypingTimer[k]);
-				});
-				
+					fileArr.sort((a, b) => a - b).forEach(file2 => {
+						var rpc = file2;
+						options +=
+						'<option data-img-label="' + rpc +
+						'" data-img-src="' + tmpDir + '/Slide' + rpc
+						+ '.png" value="' + rpc + '">Slide ' + rpc + "\n";
+						$("#slides_grp").html(options);
+						$("select").find('option[value="Current"]').prop('img-src', tmpDir + "/Slide1.png");
+						if (!fs.existsSync(tmpDir + "/Slide2.png")) {
+							$("select").find('option[value="Next"]').prop('img-src', tmpDir + "/Slide1.png");
+						} else {
+							$("select").find('option[value="Next"]').prop('img-src', tmpDir + "/Slide2.png");
+						}
+					})
+					$("#fullblack").hide();
+					$("#reloadReq").hide();
+					selectSlide('1');
+				} else {
+					alert("Only allowed filename extensions are PPT and PPTX.");
+					$("#fullblack").hide();
+				}
 			} else {
-				$(menuName).click(function() {
-					const { remote } = require('electron');
-					remote.getCurrentWindow().close();
-				});
+				$("#fullblack").hide();
 			}
-		});
+		})
+	});
 
-		ipc.on('cmd', (event, arg) => {
-			if (arg.msg == "loaded") {
-				lazyLoad();
-			}
-		});
+	function selectSlide(num) {
+		$('optgroup[label="Slides"] option[value="' + num.toString() + '"]').prop('selected',true);
+		$('optgroup[label="Slides"] option[value="' + num.toString() + '"]').change();
+		currentSlide = num;
 
-		$("#smaller").click(function() {
-			if (zoomLvl <= 1 ) {
-				return;
-			}
-			zoomLvl -= 0.1;
-			$(".right").css("transform-origin", "top left");
-			$(".right").css("transform", "scale(" + zoomLvl.toString() + ")");
-		});
-
-		$("#bigger").click(function() {
-			zoomLvl += 0.1;
-			$(".right").css("transform-origin", "top left");
-			$(".right").css("transform", "scale(" + zoomLvl.toString() + ")");
-		});
-
-		$("#bottom #warnsIco, .warnsCnt").click(function() {
-			$("#menu_home").trigger( "click" );
-		});
-
-		$("#proc_reset").click(function() {
-			MENU.forEach(function(rawMenuName, k) {
-				if (!(rawMenuName.name == "exit" || rawMenuName.name == "home")) {
-					rightName = '#right_' + rawMenuName.name;
-					$(rightName + " #url").val("http://");
-					change_url_color(rightName);
-				}
-			});
-			$("#gpxfile").val(gpxOrigFilePath);
-		});
-
-		$("#proc_save").click(function() {
-			const fs = require("fs-extra");
-			var save_dat = "";
-			MENU.forEach(function(rawMenuName, k) {
-				if (!(rawMenuName.name == "exit" || rawMenuName.name == "home")) {
-					rightName = '#right_' + rawMenuName.name;
-					save_dat += rawMenuName.name + ".url=" + $(rightName + " #url").val() + "\n";
-				}
-			});
-			save_dat += "car.gpxfile=" + $("#gpxfile").val().trim();
-			fs.writeFile(configFile, save_dat, function(err) {
-				if(err) {
-					return console.log(err);
-				}
-			}); 
-		});
-		
-		$("#exit").click(function() {
-			const { remote } = require('electron');
-			remote.getCurrentWindow().close();
-		});
-
-		$("#menu_home").trigger( "click" );
-		loadConf();
-	}
-
-	function mapUpdate(lat, lon) {
-		if (!mapDeleted) {
-			$("#map").attr("src","https://www.openstreetmap.org/export/embed.html?bbox=" + lon.toString() + "%2C" + lat.toString() + "%2C" + lon.toString() + "%2C" + lat.toString() + "&marker=" + lat.toString() + "%2C" + lon.toString() + "&layers=ND");
+		var selected = $('.selected:eq( 0 )');
+		if (selected.length) {
+			$("#below").stop().animate(
+			{ scrollTop: selected.position().top + $("#below").scrollTop() },
+			  500, 'swing', function() {
+			  });
 		}
+
+		updateScreen();
 	}
 
-	function post_http_car(is_test, lat, lon, direction) {
-		var tx_content;
-		tx_content = `{
-				"name" : "Ambulance",
-				"driver" : "Daniel",
-				"latitude" : ` + lat.toString() + `,
-				"longitude" : ` + lon.toString() + `,
-				"elevation" : 4,
-				"direction" : ` + direction.toString() + `,
-				"ECG" : 0.63,
-				"body_heat" : 36.5,
-				"fuel" : 38,
-				"temperature" : 22.3
-				"humidity" : 62.3,
-				"no2" : 0.5,
-				"co" : 0.98,
-				"so2" : 0.4
-				"time" : 7
-			  }`;
-		lastLon = lon;
-		lastLat = lat;
-		$("#right_car #tx_content").val(tx_content.replace(/\s+/g, " ") + "\n");
-		if (mapUpdateStartTime == 0) {
-			mapUpdate(lat, lon);
-			mapUpdateStartTime = new Date();
-		} else {
-			var curTime = new Date();
-			if (curTime - mapUpdateStartTime > 10000) {
-				mapUpdate(lat, lon);
-				mapUpdateStartTime = new Date();
-			}
+	function gotoPrev() {
+		var curSli;
+		var re;
+		if (!repo) {
+			return;
 		}
-		request.post({
-			  headers: {'content-type' : 'application/json'},
-			  url:     $("#url").val().trim(),
-			  body:    tx_content,
-			}, function(err, res, body){
-				console.log("lat: " + lat + " lon: " + lon);
-				if (err) {
-					if (is_test) {
-						//alert("Could not connect to the server");
-					}
-					return console.log(err);
-				}
-			});
-	}
-
-	function post_http_demo(is_test, status, delay) {
-		var tx_content;
-		tx_content = `{
-				"name" : "demo_runner",
-				"status" : "` + status + `",
-				"delay" : "` + delay + `"
-			  }`;
-		$("#right_demoAutoRunner #tx_content").val(tx_content.replace(/\s+/g, " ") + "\n");
-		request.post({
-			  headers: {'content-type' : 'application/json'},
-			  url:     $("#url").val().trim(),
-			  body:    tx_content,
-			}, function(err, res, body){
-				if (err) {
-					if (is_test) {
-						//alert("Could not connect to the server");
-					}
-					return console.log(err);
-				}
-			});
-	}
-
-	// IoT device
-	function toggle_bulb(div) {
-		var src = $(div).attr('src');
-		var id = $(div).attr('id');
-		var new_file;
-		id = id.replace("room", "");
-		if (/off/.test(src)) {
-			new_file = "bulb_on.png";
-			$(div).attr('src', new_file);
-			post_http_bulb(id, "on");
-		} else {
-			new_file = "bulb_off.png";
-			$(div).attr('src', new_file)
-			post_http_bulb(id, "off");
+		curSli = currentSlide;
+		curSli--;
+		if (curSli == 0) {
+			curSli = maxSlideNum;
 		}
+		selectSlide(curSli.toString());
 	}
 
-	function post_http_bulb(id, status) {
-		var tx_content;
-		tx_content = `{
-			"room" : "` + id + `",
-			"bulb_status" : "` + status + `"
-			}`;
-		$("#right_iotBulb #tx_content").val(tx_content.replace(/\s+/g, " ") + "\n");
-		for (var i = 0; i < 2; i++) request.post({
-			  headers: {'content-type' : 'application/json'},
-			  url:     $("#right_iotBulb #url").val().trim(),
-			  body:    tx_content,
-			}, function(err, res, body){
-				if (err) {
-					return console.log(err);
-				}
-			});
+	function gotoNext() {
+		var curSli;
+		var re;
+		if (!repo) {
+			return;
+		}
+		curSli = currentSlide;
+		curSli++;
+		if (curSli > maxSlideNum) {
+			curSli = 1;
+		}
+		selectSlide(curSli.toString());
 	}
 	
-	function post_http_flame() {
-		var tx_content;
-		tx_content = `{
-			"flame" : "on"
-			}`;
-		$("#right_iotFlame #tx_content").val(tx_content.replace(/\s+/g, " ") + "\n");
-		request.post({
-			headers: {'content-type' : 'application/json'},
-			url:     $("#right_iotFlame #url").val().trim(),
-			body:    tx_content,
-		}, function(err, res, body){
-			if (err) {
-				return console.log(err);
+	$('#prev').click(function() {
+		gotoPrev();
+	});
+
+	$('#next').click(function() {
+		gotoNext();
+	});
+
+	$(document).keydown(function(e) {
+		$("#below").trigger('click');
+		if(e.which == 13 || e.which == 32 || e.which == 39 || e.which == 40) {
+			// Enter, spacebar, right arrow or down
+			gotoNext();
+		} else if(e.which == 37 || e.which == 8 || e.which == 38) {
+			// Left arrow, backspace or up
+			gotoPrev();
+		} else if(e.which == 36) {
+			// Home
+			selectSlide('1');
+		} else if(e.which == 35) {
+			// End
+			selectSlide(maxSlideNum.toString());
+		} else if (e.ctrlKey) {
+			if (e.which == 87) {
+				// Prevents Ctrl-W
+				e.preventDefault();
+				e.stopPropagation();
 			}
-		});
+		}
+	});
+
+	$('.button, .checkbox').keydown(function(e){
+		if (e.which == 13 || e.which == 32) {
+			// Enter or spacebar
+			e.preventDefault();
+			e.stopPropagation();
+			gotoNext();
+		}
+	});
+
+	function checkTime(i) {
+		if (i < 10) {
+			i = "0" + i;
+		}
+		return i;
 	}
 
-	function chkGPX() {
-		const fs = require("fs-extra");
-		var rightName = "#right_car";
-		gpxFilePath=($("#gpxfile").val().trim());
-		if (fs.existsSync(gpxFilePath)) {
-			$(rightName + " #filestat").attr('src',"ok.png");
+	function startCurrentTime() {
+		var today = new Date();
+		var h = today.getHours();
+		var m = today.getMinutes();
+		var s = today.getSeconds();
+		var t;
+		m = checkTime(m);
+		s = checkTime(s);
+		$('#current_time').html(h + ":" + m + ":" + s);
+		t = setTimeout(startCurrentTime, 500);
+	}
+
+	function cleanupForTemp() {
+		if (fs.existsSync(tmpDir)) {
+			fs.removeSync(tmpDir);
+		}
+	}
+
+	function cleanupForExit() {
+		try {
+			child.stdin.write("destroy\n");
+		} catch(e) {
+		}
+		cleanupForTemp();
+		ipc.send('remote', "exit");
+	}
+
+	ipc.on('remote' , function(event, data){
+		if (data.msg == "exit") {
+			cleanupForExit();
+		}
+	});
+
+	$('#minimize').click(function() {
+		remote.BrowserWindow.getFocusedWindow().minimize();
+	});
+
+	$('#max_restore').click(function() {
+		if(currentWindow.isMaximized()) {
+			remote.BrowserWindow.getFocusedWindow().unmaximize();
 		} else {
-			$(rightName + " #filestat").attr('src',"warn.png");
+			remote.BrowserWindow.getFocusedWindow().maximize();
 		}
-		setTimeout(chkGPX, 1000);
-	}
+	});
 
-	function implFunc(menuName) {
-		var rightName = "#right_" + menuName;
-		if (menuName === "home" || menuName === "exit") {
-			return;
+	$('#trans_checker').click(function() {
+		if ($("#trans_checker").is(":checked")) {
+			$("#right img").css('background-image', "url('trans_slide.png')");
+		} else {
+			$("#right img").css('background-image', "url('null_slide.png')");
 		}
+	});
 
-		// Car
-		if (menuName === "car") {
-			chkGPX();
-			$(rightName + " #script").change(function() {
-				var val = $(rightName + " #script").val().trim();
-				var data =
-					'options.rotate = parseInt(options.metric.value.direction);' + "\n" +
-					'options.offsetStyle = "center";';
-				if (val == "none") {
-					$(rightName + " #note_content").html("");
-				} else if (val == "wizeye1") {
-					$(rightName + " #note_content").html(data);
-				}
-			});
+	currentWindow.on('maximize', function (){
+		$("#max_restore").attr("src", "restore.png");
+    });
 
-			$(rightName + " #map_del").click(function() {
-				if (!mapDeleted) {
-					mapDeleted = true;
-					$(rightName + " #mapedge").hide();
-				} else {
-					mapDeleted = false;
-					$(rightName + " #mapedge").show();
-				}
-			});
-			$(rightName + " #proc_url").click(function() {
-				const fs = require("fs-extra");
-				mapUpdateStartTime = 0;
-				if ($(rightName + " #test").is(":checked")) {
-					var i = 0;
-					clearAllThreads();
-					if (/Stop/.test($(rightName + " #proc_url").val().trim())) {
-						$(rightName + " #proc_url").val(" Run ");
-						return;
-					}
-					post_http_car(true, 37.5665, 126.9780, 349);
-					$(rightName + " #proc_url").val(" Run ");
-					return;
-				} else {
-					var content;
-					var i = 0;
-					var delay = $(rightName + " #delay").val().trim();
-					var res = [];
-					var newRes = [];
-					clearAllThreads();
-					if (!(/^\d+$/.test(delay))) {
-						delay = 100;
-					}
-					if (/Stop/.test($(rightName + " #proc_url").val().trim())) {
-						if (lastLat !=0 && lastLon !=0) {
-							mapUpdate(lastLat, lastLon);
-						}
-						$(rightName + " #proc_url").val(" Run ");
-						return;
-					}
-					$(rightName + " #proc_url").val(" Stop ");
-					gpxFilePath=($("#gpxfile").val());
-					content = fs.readFileSync(gpxFilePath, 'utf-8');
-					res = content.replace(/\r\n/g, "\n").split("\n");
-					for (i = 0; i < res.length; i++) {
-						let entry = res[i];
-						if (entry != "") {
-							//<trkpt lat="3.157190000" lon="101.7135400">
-							entry = entry.trim();
-							if (/<trkpt lat="(.+)" lon="(.+)">/.test(entry)) {
-								newRes.push(entry);
-							}
-						}
-					}
+	currentWindow.on('unmaximize', function (){
+		$("#max_restore").attr("src", "max.png");
+    });
+	
+	$('#exit').click(function() {
+		cleanupForExit();
+	});
 
-					for (i = 0; i < newRes.length; i++) {
-						let entry = newRes[i].trim();
-						let next_entry = newRes[i+1].trim();
-						if (entry != "") {
-							let oldStripped = entry.replace('<trkpt lat="', '');
-							let newStripped = next_entry.replace('<trkpt lat="', '');
-							let oldLat, oldLong;
-							let newLat, newLong;
-							let ret;
-							let thread;
-							let brng;
-							oldLat = oldStripped.replace(/".+/, "");
-							oldLong = oldStripped.replace(/.+lon="/, "").replace('">', "");
-							newLat = newStripped.replace(/".+/, "");
-							newLong = newStripped.replace(/.+lon="/, "").replace('">', "");
-							if (/\S/.test(newLat)) {
-								if ($(rightName + " #direction").is(":checked")) {
-									brng = Math.atan2(newLat - oldLat, newLong - oldLong);
-									brng = brng * (180 / Math.PI);
-									//brng = (brng + 360) % 360;
-									//brng = 360 - brng;
-								} else {
-									brng = 0;
-								}
-							} else {
-								brng = 0;
-							}
-							thread = setTimeout(post_http_car, delay*(i+1), false, oldLat, oldLong, brng);
-							carThreads.push(thread);
-						}
-					};
-					console.log("signal sent");
-				}
-			});
-			return;
+	document.addEventListener('dragover',function(event){
+		event.preventDefault();
+		return false;
+	},false);
+	
+	document.addEventListener('drop',function(event){
+		event.preventDefault();
+		return false;
+	},false);
+
+	window.addEventListener("keydown", function(e) {
+		if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+			e.preventDefault();
 		}
+	}, false);
 
-		if (menuName === "iotBulb") {
-			const ipc = require('electron').ipcRenderer;
-			ipc.on('cmd', (event, arg) => {
-				if (arg.msg == "loaded") {
-					setTimeout(function() {
-						const bodyParser = require('body-parser');
-						const express = require("express");
-						var app = express();
-						app.use(bodyParser.urlencoded({ extended: false }));
-						app.use(bodyParser.json());
-						app.listen(appPort, () => {
-							console.log("Server running on port 3000");
-							$(rightName + " #svrstat").attr('src',"ok.png");
-						}).on('error', function(err) {
-							$(rightName + " #svrstat").attr('src',"warn.png");
-						});
-
-						app.get("/iot_bulb", (req, res, next) => {
-							res.send("Invalid request");
-						});
-
-						app.post("/iot_bulb", (req, res) => {
-							var room = "";
-							var bulbStat = "";
-							var validity = false;
-							var rx_content;
-							$(rightName + " #rx_content").val(JSON.stringify(req.body) + "\n");
-
-							room += req.body.room;
-							bulbStat += req.body.bulb_status;
-							if (/^(0|1|2|3|4)$/.test(room.trim())) {
-								if (/^(on|off|toggle)$/i.test(bulbStat.trim())) {
-									validity = true;
-								}
-							}
-							if (!validity) {
-								res.send("Invalid request");
-								return;
-							}
-							if (room.trim() == "0") {
-								//
-							} else {
-								toggle_bulb(rightName + " #room" + room.trim());
-								console.log(room.trim());
-							}
-							res.send('{ "code" : 200 }');
-						});
-					}, 1000);
-				}
-			});
-
-			$(".bulbs").click(function() {
-				toggle_bulb(this);
-			});
-
-			$(rightName + " #script").change(function() {
-				var val = $(rightName + " #script").val().trim();
-				var data1 =
-					'if ( options.metric.value.room.toString() == "';
-				var data2 = '" ) {' + "\n" +
-					'    options.url = "/proxy/file/resource/bulb_" + options.metric.value.bulb_status + ".png";' + "\n" +
-					'}';
-				if (val == "none") {
-					$(rightName + " #note_content").html("");
-				} else if (val == "wizeye1") {
-					$(rightName + " #note_content").html(data1 + "1" + data2);
-				} else if (val == "wizeye2") {
-					$(rightName + " #note_content").html(data1 + "2" + data2);
-				} else if (val == "wizeye3") {
-					$(rightName + " #note_content").html(data1 + "3" + data2);
-				} else if (val == "wizeye4") {
-					$(rightName + " #note_content").html(data1 + "4" + data2);
-				}
-			});
-
-
-			return;
-		}
-		
-		if (menuName === "iotFlame") {
-			$( "#rasp_fire" ).draggable({
-				containment: "#limitedArea2",
-				revert : function(event, ui) {
-                    $(this).data("uiDraggable").originalPosition = {
-                            top : 13, left : 0
-                    };
-					return true;
-				}
-			});
-            $( "#lighter" ).draggable({
-					containment: "#limitedArea1",
-                    revert : function(event, ui) {
-						$("#rasp_fire").attr("src","rasp_fire_off.png");
-						$(this).data("uiDraggable").originalPosition = {
-							top : 13, left : 0
-						};
-						return true;
-					},
-					drag : function() {
-						var offset = $(this).offset();
-						var xPos = offset.left;
-						if (xPos > 550) {
-							$("#rasp_fire").attr("src","rasp_fire_on.png");
-							post_http_flame();
-						} else {
-							$("#rasp_fire").attr("src","rasp_fire_off.png");
-						}
-					}
-            });
-			$(rightName + " #script").change(function() {
-				var val = $(rightName + " #script").val().trim();
-				var data =
-					'#!/usr/bin/python' + "\n" +
-					'import RPi.GPIO as GPIO' + "\n" +
-					'import time' + "\n" +
-					'' + "\n" +
-					'#GPIO SETUP' + "\n" +
-					'channel = 21' + "\n" +
-					'GPIO.setmode(GPIO.BCM)' + "\n" +
-					'GPIO.setup(channel, GPIO.IN)' + "\n" +
-					'' + "\n" +
-					'def callback(channel):' + "\n" +
-					'    print("flame detected")' + "\n" +
-					'' + "\n" +
-					'GPIO.add_event_detect(channel, GPIO.BOTH, bouncetime=300)  # let us know when the pin goes HIGH or LOW' + "\n" +
-					'GPIO.add_event_callback(channel, callback)  # assign function to GPIO PIN, Run function on change' + "\n" +
-					'' + "\n" +
-					'# infinite loop' + "\n" +
-					'while True:' + "\n" +
-					'        time.sleep(1)';
-				var data2 = '(flame=="on")?"red":"grey";';
-				var data3 = '(flame=="on")?true:false;';
-				if (val == "none") {
-					$(rightName + " #note_content2").html("");
-				} else if (val == "python1") {
-					$(rightName + " #note_content2").html(data);
-				} else if (val == "wizeye1") {
-					$(rightName + " #note_content2").html(data2);
-				} else if (val == "wizeye2") {
-					$(rightName + " #note_content2").html(data3);
-				}
-			});
-			return;
-		}
-
-		if (menuName === "demoAutoRunner") {
-			$(rightName + " #proc_url1").click(function() {
-				var delay = $(rightName + " #delay").val().trim();
-				if (!(/^\d+$/.test(delay))) {
-					delay = 5000;
-				}
-				post_http_demo(false, "ready", delay);
-				console.log("signal sent");
-			});
-			$(rightName + " #proc_url2").click(function() {
-				var delay = $(rightName + " #delay").val().trim();
-				if (!(/^\d+$/.test(delay))) {
-					delay = 5000;
-				}
-				post_http_demo(false, "done", delay);
-				console.log("signal sent");
-			});
-			$(rightName + " #script").change(function() {
-				var val = $(rightName + " #script").val().trim();
-				var data = 'var x = function sleep(ms) {' + "\n" +
-					'    return new Promise(resolve => setTimeout(resolve, ms));' + "\n" +
-					'}' + "\n" +
-					'var b = async function demo() {' + "\n" +
-					'    await x(parseInt(options.metric.value.delay, 10));' + "\n" +
-					'    if (options.metric.value.status == "ready") {' + "\n" +
-					'    	_do.changeMap("MAPNAME", null, false);' + "\n" +
-					'    }' + "\n" +
-					'}' + "\n" +
-					'b();';
-				if (val == "none") {
-					$(rightName + " #note_content2").html("");
-				} else if (val == "wizeye1") {
-					$(rightName + " #note_content2").html(data);
-				}
-			});
-			return;
-		}
-		alert("Invalid menuName: " + menuName);
-	}
-
-	init();
+	initImgPicker();
+	startCurrentTime();
 });
