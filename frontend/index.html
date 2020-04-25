@@ -1,0 +1,177 @@
+<html>
+<script>if (typeof module === 'object') {window.module = module; module = undefined;}</script>
+<script src="jquery.min.js"></script>
+<script src="client.js"></script>
+<script src="image-picker.min.js"></script>
+<link rel="stylesheet" type="text/css" href="common.css">
+<link rel="stylesheet" type="text/css" href="style.css">
+<link rel="stylesheet" type="text/css" href="image-picker.css">
+<script>if (window.module) module = window.module;</script>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+<title>-</title>
+</head>
+<body>
+<h1><h1>
+<div id="top" style="-webkit-app-region: drag">
+	<div id="ppt_filename"></div>
+	<div id="slide_res" class="slideInfo">0 x 0</div>
+	<img src="big_icon.png" style="-webkit-app-region: drag">
+	<img id="minimize" src="min.png">
+	<img id="max_restore" src="max.png">
+	<img id="exit" src="close.png">
+</div>
+
+<div id="rest">
+	<div id="rest1">
+		<img id="load_pptx" class="button" src="open.png">
+		<div id="edit_pptx" class="button2">EDIT</div>
+		<div id="reload" class="button2">RELOAD</div>
+		<div id="config" class="button2">CONFIG</div>
+		<table id="bktbl" border="0">
+		  <tbody>
+			<tr>
+			  <td width="180px">Show Checkerboard</td>
+			  <td>
+				<label class="switch">
+				<input type="checkbox" id="trans_checker" class="checkbox" name="trans_checker" value="trans_checker" checked>
+				<span class="slider"></span>
+				</label>
+			</td>
+			</tr>
+			<tr>
+			  <td width="180px">Enable Slide Transition Effect</td>
+			  <td>
+				<label class="switch">
+				<input type="checkbox" id="use_slide_transition" class="checkbox" name="use_slide_transition" value="use_slide_transition" checked>
+				<span class="slider"></span>
+				</label>
+			</td>
+			</tr>
+			<tr>
+			  <td width="180px">Include Background</td>
+			  <td width="35px">
+				<label class="switch">
+				<input type="checkbox" id="with_background" class="checkbox" name="with_background" value="with_background">
+				<span class="slider"></span>
+				</label>
+			  </td>
+			</tr>
+		  </tbody>
+		</table>
+		<table id="bktbl2" border="0">
+			<tbody>
+				<tr>
+					<td width="120px">Resolution</td>
+					<td width="300px">
+						<div class="resText">
+							<input type="text"
+							onkeypress="return (event.charCode !=8 && event.charCode ==0 || (event.charCode >= 48 && event.charCode <= 57))"
+							id="resWidth">&nbsp;x&nbsp;<input type="text"
+							onkeypress="return (event.charCode !=8 && event.charCode ==0 || (event.charCode >= 48 && event.charCode <= 57))"
+							id="resHeight">
+							<div id="listRes">...</div>
+						</div>
+						<select id="listResList">
+							<option value="0x0">Default</option>
+							<option value="custom">Custom</option>
+							<option value="640x480">4:3 | 640 x 480</option>
+							<option value="800x600">4:3 | 800 x 600</option>
+							<option value="960x720">4:3 | 960 x 720</option>
+							<option value="1024x768">4:3 | 1024 x 768</option>
+							<option value="1152x864">4:3 | 1152 x 864</option>
+							<option value="1280x960">4:3 | 1280 x 960</option>
+							<option value="1400x1050">4:3 | 1400 x 1050</option>
+							<option value="1440x1080">4:3 | 1440 x 1080</option>
+							<option value="1600x1200">4:3 | 1600 x 1200</option>
+							<option value="1856x1392">4:3 | 1856 x 1392</option>
+							<option value="1920x1440">4:3 | 1920 x 1440</option>
+							<option value="2048x1536">4:3 | 2048 x 1536</option>
+							<option value="1024x576">16:9 | 1024 x 576</option>
+							<option style="color: #9cffa9" value="1280x720">16:9 | 1280 x 720</option>
+							<option value="1600x900">16:9 | 1600 x 900</option>
+							<option style="color: #9cffa9" value="1920x1080">16:9 | 1920 x 1080</option>
+							<option value="2560x1440">16:9 | 2560 x 1440</option>
+							<option style="color: #9cffa9" value="3840x2160">16:9 | 3840 x 2160</option>
+							<option value="1280x800">16:10 | 1280 x 800</option>
+							<option value="1440x900">16:10 | 1440 x 900</option>
+							<option value="1680x1050">16:10 | 1680 x 1050</option>
+							<option value="1920x1200">16:10 | 1920 x 1200</option>
+							<option value="2560x1600">16:10 | 2560 x 1600</option>
+							<option value="2560x1080">21:9 | 2560 x 1080</option>
+							<option value="3840x1080">32:9 | 3840 x 1080</option>
+						</select>
+						<div id="setRes">SET</div>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</div>
+	<div id="slideInfo">
+		<div id="slide_cnt" class="slideInfo">SLIDE 0 / 0</div>
+		<div id="current_time" class="slideInfo">00:00 AM</div>
+	</div>
+	<div id="monitorControl">
+		<div id="monitorControlText">SlideShow Monitor</div>
+		<select id="monitorList">
+		</select>
+		<div id="monitorAlphaText">Alpha</div>
+		<label class="switch" id="monitor_trans_switch">
+		<input type="checkbox" id="monitor_trans" class="checkbox" name="monitor_trans" value="monitor_trans" checked>
+		<span class="slider"></span>
+		</label>
+		<div id="setMonitor">SET</div>
+		<div id=""></div>
+	</div>
+	<div id="rest2">
+		<table id="right" border="0">
+		  <tbody>
+			<tr>
+			  <td width="50%">
+				<select class="image-picker show-html">
+					<optgroup label="Screen" id="screen_grp">
+					<option data-img-label="CURRENT" data-img-src="null_slide.png" value="Current" disabled>Current</option>
+					</optgroup>
+				</select>
+			  </td>
+			  <td width="40%" style="vertical-align: top;">
+				<select class="image-picker show-html">
+					<optgroup label="Screen" id="screen_grp">
+					<option data-img-label="NEXT" data-img-src="null_slide.png" value="Next" disabled>Next</option>
+					</optgroup>
+				</select>
+					<div id="buttons">
+						<button type="button" class="button" id="prev">&nbsp;&lt;&nbsp;</button>
+						<button type="button" class="button" id="next">&nbsp;&gt;&nbsp;</button>
+						<button type="button" class="button" id="blk">&nbsp;B&nbsp;</button>
+						<button type="button" class="button" id="wht">&nbsp;W&nbsp;</button>
+						<button type="button" class="button" id="trn">&nbsp;T&nbsp;</button>
+						<button type="button" class="button" id="empty">&nbsp;</button>
+						<button type="button" class="button" id="smaller">&nbsp;</button>
+						<button type="button" class="button" id="bigger">&nbsp;</button>
+					</div>
+			  </td>
+			</tr>
+			<tr width="100%">
+				<td colspan="2">
+					<div id="below">
+						<select class="image-picker">
+							<optgroup label="Slides" id="slides_grp">
+							</optgroup>
+						</select>
+					</div>
+				</td>
+			</tr>
+		  </tbody>
+		</table>
+
+	</div>
+	<div id="fullblack"></div>
+	<div class="cancelBox">
+		<div id="loadingTxt">LOADING</div>
+		<div id="cancel" class="button">Cancel</div>
+	</div>
+</div>
+
+</html>
