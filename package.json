@@ -4,7 +4,7 @@
 	"main": "backend.js",
 	"dependencies": {
 		"body-parser": "^1.18.3",
-		"express": "^4.16.4",
+		"express": "^4.17.3",
 		"fs-extra": "^7.0.1",
 		"request": "^2.88.0",
 		"windows-blurbehind": "file:windows-blurbehind",
